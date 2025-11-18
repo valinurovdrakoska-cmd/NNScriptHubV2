@@ -1,6 +1,5 @@
 --// ==================================================
---// NNScript Ultimate — РАБОЧАЯ ФИНАЛЬНАЯ ВЕРСИЯ
---// Всё проверено 18.11.2025 — работает на ура
+--// NNScript Ultimate — Финальная версия + Новый Master ESP
 --// ==================================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Robojini/Tuturial_UI_Library/main/UI_Template_1"))()
@@ -32,6 +31,7 @@ local espSettings = {
 }
 
 local espObjects = {}
+local espLoop
 
 local function createESP(plr)
     if plr == player or espObjects[plr] then return end
@@ -63,7 +63,6 @@ local function removeESP(plr)
     end
 end
 
-local espLoop
 local function updateESP()
     if not espEnabled then return end
 
@@ -73,7 +72,7 @@ local function updateESP()
         local head = char and char:FindFirstChild("Head")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-        if char and hrp and hum and hum.Health > 0 then  -- ← ИСПРАВЛЕНО: было "and1"
+        if char and hrp and hum and hum.Health > 0 then
             local rootPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
             local headPos = head and Camera:WorldToViewportPoint(head.Position + Vector3.new(0,1,0)) or rootPos
             local feetPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
@@ -97,9 +96,9 @@ local function updateESP()
                     objs.Box.Visible = false
                 end
 
-                -- Tracer (от низа экрана)
+                -- Tracer
                 if espSettings.Tracer then
-                    objs.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)  -- ← ИСПРАВЛЕНО
+                    objs.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
                     objs.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
                     objs.Tracer.Color = color
                     objs.Tracer.Visible = true
@@ -119,7 +118,8 @@ local function updateESP()
 
                 -- Distance
                 if espSettings.Distance then
-                    objs.Distance.Text = math.floor(distance) .. "m"
+                    nums = math.floor(distance)
+                    objs.Distance.Text = nums.."m"
                     objs.Distance.Position = Vector2.new(rootPos.X, feetPos.Y + 5)
                     objs.Distance.Color = color
                     objs.Distance.Visible = true
@@ -129,7 +129,7 @@ local function updateESP()
 
                 -- Health
                 if espSettings.Health then
-                    objs.Health.Text = math.floor(hum.Health) .. "/" .. hum.MaxHealth
+                    objs.Health.Text = math.floor(hum.Health).."/"..hum.MaxHealth
                     objs.Health.Position = Vector2.new(rootPos.X - 30, rootPos.Y)
                     objs.Health.Color = hum.Health > 50 and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
                     objs.Health.Visible = true
@@ -145,18 +145,31 @@ local function updateESP()
     end
 end
 
-local function toggleESP(state)
+--// НОВЫЙ МАСТЕР-СВИТЧ (всё включает одним кликом)
+ESPSection:NewToggle("ESP Master Switch", "Вкл/Выкл весь ESP одним кликом", function(state)
     espEnabled = state
+    
     if state then
+        -- При включении мастера — возвращаем всё на максимум
+        espSettings.Box = true
+        espSettings.Tracer = true
+        espSettings.Name = true
+        espSettings.Distance = true
+        espSettings.Health = true
+        -- TeamCheck оставляем как есть (ты сам решаешь)
+
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= player then createESP(plr) end
         end
+
         Players.PlayerAdded:Connect(function(plr)
             plr.CharacterAdded:Wait()
             task.wait(1)
             if espEnabled then createESP(plr) end
         end)
+
         Players.PlayerRemoving:Connect(removeESP)
+
         if not espLoop then
             espLoop = RunService.RenderStepped:Connect(updateESP)
         end
@@ -164,17 +177,17 @@ local function toggleESP(state)
         for plr in pairs(espObjects) do removeESP(plr) end
         if espLoop then espLoop:Disconnect() espLoop = nil end
     end
-end
+end)
 
-ESPSection:NewToggle("ESP Master Switch", "Вкл/Выкл весь ESP", toggleESP)
-ESPSection:NewToggle("Box ESP", "Боксы", function(s) espSettings.Box = s end)
-ESPSection:NewToggle("Tracer ESP", "Трейсеры", function(s) espSettings.Tracer = s end)
-ESPSection:NewToggle("Name ESP", "Имена", function(s) espSettings.Name = s end)
-ESPSection:NewToggle("Distance ESP", "Расстояние", function(s) espSettings.Distance = s end)
-ESPSection:NewToggle("Health ESP", "Здоровье", function(s) espSettings.Health = s end)
-ESPSection:NewToggle("Team Check", "Не показывать тиммейтов", function(s) espSettings.TeamCheck = s end)
+-- Остальные тогглы (по дефолту включены)
+ESPSection:NewToggle("Box ESP", "Боксы", function(s) espSettings.Box = s end):Set(true)
+ESPSection:NewToggle("Tracer ESP", "Трейсеры", function(s) espSettings.Tracer = s end):Set(true)
+ESPSection:NewToggle("Name ESP", "Имена", function(s) espSettings.Name = s end):Set(true)
+ESPSection:NewToggle("Distance ESP", "Расстояние", function(s) espSettings.Distance = s end):Set(true)
+ESPSection:NewToggle("Health ESP", "Здоровье", function(s) espSettings.Health = s end):Set(true)
+ESPSection:NewToggle("Team Check", "Не показывать тиммейтов", function(s) espSettings.TeamCheck = s end):Set(true)
 
---// ==================== FLY (ПОЛНОСТЬЮ РАБОЧИЙ) ====================
+--// ==================== FLY + ДВИЖЕНИЕ (рабочий) ====================
 local MoveSection = MovementTab:NewSection("Movement Cheats")
 
 local flyActive = false
@@ -233,9 +246,8 @@ MoveSection:NewToggle("Fly Hack", "Полёт (WASD + Space/Ctrl)", function(sta
     if state then startFly() else stopFly() end
 end)
 
-MoveSection:NewSlider("Fly Speed", "Скорость полёта", 1000, 16, function(v) flySpeed = v end, 100)
+MoveSection:NewSlider("Fly Speed", "Скорость полёта", 1000, 20, function(v) flySpeed = v end, 100)
 
--- Infinite Jump + Speed + JumpPower
 local infJump = false
 UserInputService.InputBegan:Connect(function(inp, gp)
     if infJump and not gp and inp.KeyCode == Enum.KeyCode.Space and humanoid then
@@ -247,7 +259,6 @@ MoveSection:NewToggle("Infinite Jump", "Бесконечный прыжок", fu
 MoveSection:NewSlider("WalkSpeed", "Скорость ходьбы", 500, 16, function(v) if humanoid then humanoid.WalkSpeed = v end end, 16)
 MoveSection:NewSlider("JumpPower", "Сила прыжка", 500, 50, function(v) if humanoid then humanoid.JumpPower = v end end, 50)
 
--- Респавн + восстановление Fly
 player.CharacterAdded:Connect(function(newChar)
     character = newChar
     humanoid = newChar:WaitForChild("Humanoid")
@@ -260,7 +271,7 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
---// ==================== Misc ====================
+--// Misc
 local MiscSection = MiscTab:NewSection("Misc")
 MiscSection:NewKeybind("Low Gravity", "F", Enum.KeyCode.F, function() workspace.Gravity = 30 end)
 MiscSection:NewKeybind("Normal Gravity", "G", Enum.KeyCode.G, function() workspace.Gravity = 196.2 end)
